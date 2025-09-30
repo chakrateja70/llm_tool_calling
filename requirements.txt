@@ -1,0 +1,4 @@
+langchain-core
+google-generativeai
+groq
+langchain-google-genai

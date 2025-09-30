@@ -35,6 +35,23 @@ def call_login_api(payload: dict[str, Any]) -> Any:
     except ValueError as e:  # JSON decode error
         print("Invalid JSON in Login API response")
         raise
+    
+def call_query_api(payload: dict[str, Any]) -> Any:
+    """call query api and send request payload for successful query"""
+    try:
+        response = client.post(query_api, json=payload, timeout=30.0)
+        response.raise_for_status()
+        result = response.json()
+        return result
+    except httpx.HTTPStatusError as e:
+        print("RAG API returned an error status")
+        raise
+    except httpx.RequestError as e:
+        print("Network error while calling Query API")
+        raise
+    except ValueError as e:  # JSON decode error
+        print("Invalid JSON in Query API response")
+        raise
 
 @tool
 def multiply(a: int, b: int) -> int:
@@ -51,11 +68,11 @@ def subtract(a: int, b: int) -> int:
     """Subtract b from a."""
     return a - b
 
-@tool
-def answer_question(question: str) -> str:
-    """Answer a question using the LLM."""
-    response = model.invoke(question)
-    return response.content
+# @tool
+# def answer_question(question: str) -> str:
+#     """Answer a question using the LLM."""
+#     response = model.invoke(question)
+#     return response.content
 
 @tool
 def login_tool(name: Optional[str] = None, age: Optional[int] = None) -> str:
@@ -77,19 +94,25 @@ def login_tool(name: Optional[str] = None, age: Optional[int] = None) -> str:
     print(f"Calling login API with payload: {payload}")
     try:
         response = call_login_api(payload)
-        print("Tool response:", response)
-        return str(response)
+        return response['message']
     except Exception as e:
         return f"Login failed: {str(e)}"
+    
+@tool
+def query_tool(query: str) -> Any:
+    """Use this tool when the user asks questions related to 'lomma', 'lomaa', 'lomaa it', 'lomaa it solutions', or any general information queries. This tool searches the RAG system to provide relevant answers based on the stored knowledge base."""
+    payload = {"query": query}
+    res = call_query_api(payload)
+    return res['answer']
 
 # Tool creation
-tools = [multiply, add, subtract, answer_question, login_tool]
+tools = [multiply, add, subtract, login_tool, query_tool]
 
 # Tool binding
 model_with_tools = model.bind_tools(tools)  
 
 # Tool calling
-user_input = "login with teja age is 21"
+user_input = "login with teja and his age is 21"
 response = model_with_tools.invoke(user_input)
 
 if response.tool_calls:
@@ -105,10 +128,13 @@ if response.tool_calls:
             final_result = add.invoke(tool_call["args"])
         elif tool_call["name"] == "subtract":
             final_result = subtract.invoke(tool_call["args"])
-        elif tool_call["name"] == "answer_question":
-            final_result = answer_question.invoke(tool_call["args"])
+        # elif tool_call["name"] == "answer_question":
+        #     final_result = answer_question.invoke(tool_call["args"])
         elif tool_call["name"] == "login_tool":
             final_result = login_tool.invoke(tool_call["args"])
+        elif tool_call["name"] == "query_tool":
+            final_result = query_tool.invoke(tool_call["args"])
+
     print("Final Answer:", final_result)
 else:
     # normal LLM response

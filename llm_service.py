@@ -1,6 +1,8 @@
 import os
 from groq import Groq, APIError
 from dotenv import load_dotenv
+from langchain_core.tools import tool
+
 
 load_dotenv(override=True)  # Load environment variables from .env file
 
@@ -10,6 +12,12 @@ if not api_key:
     raise ValueError("GROQ_API_KEY environment variable is not set. Please set it in your .env file or environment variables.")
 
 client = Groq(api_key=api_key)
+
+@tool
+def multiply(a: int, b: int) -> int:
+    """Multiply a and b."""
+    return a * b
+
 
 print("Client initialized successfully.")
 formatted_prompt = "what is difference between RAG and Fine Tuning?"
@@ -25,3 +33,9 @@ try:
     print("Answer:", answer)
 except APIError as e:
     print(f"APIError occurred: {e}")
+    
+tools = [multiply]
+# Tool binding
+model_with_tools = model.bind_tools(tools)
+# Tool calling
+response = model_with_tools.invoke(user_input)

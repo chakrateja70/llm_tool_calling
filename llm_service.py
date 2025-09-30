@@ -1,5 +1,8 @@
 import os
 from groq import Groq, APIError
+from dotenv import load_dotenv
+
+load_dotenv(override=True)  # Load environment variables from .env file
 
 # Get API key from environment variable
 api_key = os.getenv("GROQ_API_KEY")

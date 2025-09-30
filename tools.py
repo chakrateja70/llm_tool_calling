@@ -1,38 +1,52 @@
-import google.generativeai as genai
-from langchain_google_genai import ChatGoogleGenerativeAI
-from langchain_core.tools import tool
-from langchain_core.messages import AIMessage, ToolMessage
-from dotenv import load_dotenv
+import getpass
 import os
+from dotenv import load_dotenv
+from langchain.chat_models import init_chat_model
+from langchain_core.tools import tool
 
-load_dotenv(override=True)  # Load environment variables from .env file
-# Get API key from environment variable
-api_key = os.getenv("GEMINI_API_KEY")
-if not api_key:
-    raise ValueError("GEMINI_API_KEY environment variable is not set. Please set it in your .env file or environment variables.")
+load_dotenv(override=True)
 
-# Wrap Gemini in a LangChain-compatible class
-model = ChatGoogleGenerativeAI(model="gemini-2.5-flash", google_api_key=api_key)
+if not os.environ.get("GROQ_API_KEY"):
+  os.environ["GROQ_API_KEY"] = getpass.getpass("Enter API key for Groq: ")
 
-# Define a tool
+model = init_chat_model("llama-3.1-8b-instant", model_provider="groq")
+
 @tool
 def multiply(a: int, b: int) -> int:
     """Multiply a and b."""
     return a * b
 
-# Bind the tool to the model
-llm_with_tools = model.bind_tools([multiply])
+@tool
+def add(a: int, b: int) -> int:
+    """Add a and b."""
+    return a + b
 
-# Ask a question
-result = llm_with_tools.invoke("What is 2 multiplied by 3?")
+@tool
+def subtract(a: int, b: int) -> int:
+    """Subtract b from a."""
+    return a - b
 
-# Check if tool was called and extract the answer
-if result.tool_calls:
-    for call in result.tool_calls:
-        if call["name"] == "multiply":
-            a = call["args"]["a"]
-            b = call["args"]["b"]
-            answer = a * b
-            print(f"Answer: {answer}")
+# Tool creation
+tools = [multiply, add, subtract]
+
+# Tool binding
+model_with_tools = model.bind_tools(tools)  
+
+# Tool calling
+user_input = "what is LLM?"
+response = model_with_tools.invoke(user_input)
+
+if response.tool_calls:
+    # execute tools
+    final_result = None
+    for tool_call in response.tool_calls:
+        if tool_call["name"] == "multiply":
+            final_result = multiply.invoke(tool_call["args"])
+        elif tool_call["name"] == "add":
+            final_result = add.invoke(tool_call["args"])
+        elif tool_call["name"] == "subtract":
+            final_result = subtract.invoke(tool_call["args"])
+    print("Final Answer:", final_result)
 else:
-    print(f"Answer: {result.content}")
+    # normal LLM response
+    print("LLM Answer:", response.content)

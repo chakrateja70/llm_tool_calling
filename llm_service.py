@@ -53,13 +53,22 @@ class ToolRunner:
                     final_result = result
             else:
                 print("LLM Answer:", response.content)
-                if response.content:
+                # Only set final_result if no tool was called and no result was computed
+                if final_result is None and response.content:
                     final_result = response.content
                 break
 
+        # Deduplicate tools_used while preserving order
+        unique_tools_used = list(dict.fromkeys(tools_used))
+
+        # If the answer is a generic message, but we have a result, prefer the result
+        if isinstance(final_result, str) and final_result.strip().lower() in ["i understand.", "ok", "done"]:
+            if tools_used:
+                final_result = f"The result is {result}."
+
         return {
             "type": "tool_call",
-            "tools_used": tools_used,
+            "tools_used": unique_tools_used,
             "answer": final_result
         }
 

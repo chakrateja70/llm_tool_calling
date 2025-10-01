@@ -30,6 +30,7 @@ class ToolRunner:
         """Execute model + tool logic for given user input, supporting multi-step tool chaining"""
         history = [user_input]
         final_result = None
+        tools_used = []
 
         while True:
             response = self.model_with_tools.invoke("\n".join(history))
@@ -38,6 +39,7 @@ class ToolRunner:
             if response.tool_calls:
                 for tool_call in response.tool_calls:
                     print(f"Invoking tool: {tool_call['name']} with args: {tool_call['args']}")
+                    tools_used.append(tool_call["name"])
                     if tool_call["name"] == "multiply":
                         result = multiply.invoke(tool_call["args"])
                     elif tool_call["name"] == "add":
@@ -55,7 +57,10 @@ class ToolRunner:
                     final_result = response.content
                 break
 
-        return {"type": "tool_call" ,"answer": final_result}
-    
+        return {
+            "type": "tool_call",
+            "tools_used": tools_used,
+            "answer": final_result
+        }
 
 tool_runner = ToolRunner()  # initialized once
